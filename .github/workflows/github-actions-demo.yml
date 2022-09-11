@@ -10,13 +10,15 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - name: "Setup python environment"
+      - name: Setup python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           cache: 'pip' # caching pip dependencies
-        run: pip install -r requirements.txt
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+      - name: Setup python environment for the package
+        run: |
+          pip install -r requirements.txt
+      - run: echo "🖥️ The workflow is now ready to run doctests on the runner."
       - name: Run doctests
         run: |
           python3 -m diffusion.core
