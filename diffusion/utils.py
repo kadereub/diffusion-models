@@ -32,6 +32,10 @@ def cov_mat(correlations, n_assets):
 
 @nb.njit('float64[:, :](float64[:, :])')
 def cholesky_numba(A):
+    """
+    A cholesky decomposition in Numba.
+    [1] https://stackoverflow.com/questions/70133315/how-to-implement-cholesky-decomposition-using-numpy-efficiently
+    """
     n = A.shape[0]
     L = np.zeros_like(A)
     for i in range(n):
