@@ -1,2 +1,2 @@
 
-from diffusion.core import gbm
+from diffusion.core import gbm, standard

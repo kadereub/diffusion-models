@@ -4,15 +4,35 @@ import numpy as np
 from .utils import cholesky_numba
 
 
-def gbm(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
+def gbm(n_assets, dt, corr, n_sims=1_000, seed=42):
     """
-    Standard diffusion process, using Geometric Brownian motion.
+     Geometric Brownian motion.
+
+    Args:
+        n_assets (int): number of asset paths to simulate
+        dt (float): size of the discrete time steps simulated
+        corr (numpy.ndarray): If none assume uncorrelated asset paths else usses corr as the correlation matrix.
+        n_sims (int, optional): number of Monte-Carlo simulations
+        seed (int, optonal): the RNG seed.
+    Return:
+        numpy.ndarray: the simulated prices series
+    """
+    state_ = np.random.RandomState(seed)
+    x = state_.normal(0, np.sqrt(dt), size=(n_assets, n_sims))
+    l = cholesky_numba(corr)
+    wt = np.dot(l, x)
+    return wt
+
+
+def standard(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
+    """
+    Standard diffusion process, using Geometric Brownian motion, for simulating asset prices.
 
     Args:
         horizon (float): period in years (for simulation)
         n_sims (int): number of Monte-Carlo simulations
-        seed (int, optonal): the RNG seed.
-        corr (numpy.ndarray, optional): If none assume uncorrelated asset paths else usses corr as the correlation matrix.
+        seed (int, optonal): the RNG seed
+        corr (numpy.ndarray, optional): If none assume uncorrelated asset paths else usses corr as the correlation matrix
     Return:
         numpy.ndarray: the simulated prices series
     """
@@ -29,11 +49,8 @@ def gbm(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
         corr = np.zeros((n, n))
         np.fill_diagonal(corr, 1.0)
     
-    state_ = np.random.RandomState(seed)
     dt = horizon / n_sims
-    x = state_.normal(0, np.sqrt(dt), size=(n, n_sims))
-    l = cholesky_numba(corr)
-    y = np.dot(l, x)
+    y = gbm(n_assets=n, dt=dt, corr=corr, n_sims=n_sims, seed=seed)
     s_t = np.exp(
         (mu - sigma ** 2 / 2) * dt
         + sigma * y.T
