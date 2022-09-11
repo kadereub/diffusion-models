@@ -16,7 +16,22 @@ def gbm(n_assets, dt, corr, n_sims=1_000, seed=42):
         seed (int, optonal): the RNG seed.
     Return:
         numpy.ndarray: the simulated prices series
+    
+    Examples:
+    Simple structure to show dimensions
+    >>> corr = np.array([[1.0, -0.2, 0.5], [-0.2, 1.0, -0.8], [0.5, -0.8, 1.0]])
+    >>> res = gbm(3, 1/252, corr)
+    >>> res.shape
+    (3, 1000)
+
+    Error with incorrect correlation matrix dimentions
+    >>> corr = np.array([[1.0, -0.2, 0.5], [-0.2, 1.0, -0.8], [0.5, -0.8, 1.0]])
+    >>> res = gbm(4, 1/252, corr)
+    Traceback (most recent call last):
+    ...
+    AssertionError: correlation matrix dimentions should match number of assets
     """
+    assert n_assets == corr.shape[0], f"correlation matrix dimentions should match number of assets"
     state_ = np.random.RandomState(seed)
     x = state_.normal(0, np.sqrt(dt), size=(n_assets, n_sims))
     l = cholesky_numba(corr)
@@ -35,6 +50,17 @@ def standard(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
         corr (numpy.ndarray, optional): If none assume uncorrelated asset paths else usses corr as the correlation matrix
     Return:
         numpy.ndarray: the simulated prices series
+
+    Examples:
+    Simple run for two assets
+    >>> res = standard(s0=100, mu=np.array([0.05, 0.2]), sigma=np.array([0.1, 0.2]), horizon=1.0, n_sims=1000, seed=42)
+    >>> res.shape
+    (1001, 2)
+
+    Run with two correlated assets
+    >>> res = standard(s0=100, mu=np.array([0.05, 0.2]), sigma=np.array([0.1, 0.2]), horizon=1.0, n_sims=1000, seed=42, corr=np.array([[1.0, 0.4],[0.4, 1.0]]))
+    >>> np.round(res.mean(), 3)
+    122.407
     """
 
     if isinstance(mu,Iterable) and isinstance(mu,Iterable):
@@ -60,3 +86,6 @@ def standard(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
     return s_t
 
 
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
