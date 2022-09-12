@@ -15,7 +15,7 @@ def gbm(n_assets, dt, corr, n_sims=1_000, seed=42):
         n_sims (int, optional): number of Monte-Carlo simulations
         seed (int, optonal): the RNG seed.
     Return:
-        numpy.ndarray: the simulated prices series
+        numpy.ndarray: n_assets x n_sims array of the simulated prices series
     
     Examples:
     Simple structure to show dimensions
@@ -39,11 +39,37 @@ def gbm(n_assets, dt, corr, n_sims=1_000, seed=42):
     return wt
 
 
+def poisson_jump(n_assets, dt, lm, mj, sj, n_sims=1_000, seed=42):
+    """
+     A poission distributed jump intensity.
+
+    Args:
+        n_assets (int): number of asset paths to simulate
+        dt (float): size of the discrete time steps simulated
+        lm (float/numpy.1darray): The lambda of the Poisson process i.e. intensity of jump e.g. number of jumps per annum
+        mj (float/numpy.1darray): the meean of jump size
+        sj (float/numpy.1darray): standard deviation of jump
+        n_sims (int, optional): number of Monte-Carlo simulations
+        seed (int, optonal): the RNG seed.
+    Return:
+        numpy.ndarray: n_assets x n_sims array of the simulated price jumps
+    
+    """
+    state_ = np.random.RandomState(seed)
+    p = state_.poisson(lm * dt, size=(n_assets, n_sims))
+    j = state_.normal(mj, sj, size=(n_assets, n_sims))
+    jumps = np.cumsum(p * j, axis=1)
+    return jumps
+
+
 def standard(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
     """
     Standard diffusion process, using Geometric Brownian motion, for simulating asset prices.
 
     Args:
+        s0 (float/numpy.1darray): The initial stock prices
+        mu (float/numpy.1darray): The annual drift (expected return)
+        sigma (float/numpy.1darray): The annual std. dev. (volatility)
         horizon (float): period in years (for simulation)
         n_sims (int): number of Monte-Carlo simulations
         seed (int, optonal): the RNG seed
@@ -81,6 +107,51 @@ def standard(s0, mu, sigma, horizon, n_sims, seed=42, corr=None):
         (mu - sigma ** 2 / 2) * dt
         + sigma * y.T
     )
+    s_t = np.vstack([np.ones(n), s_t])
+    s_t = s0 * s_t.cumprod(axis=0)
+    return s_t
+
+
+def jump(s0, mu, sigma, horizon, n_sims, seed=42, corr=None, **poi_kwargs):
+    """
+    Merton's jump diffusion process, using Geometric Brownian motion, for simulating asset prices.
+
+    Args:
+        s0 (float/numpy.1darray): The initial stock prices
+        mu (float/numpy.1darray): The annual drift (expected return)
+        sigma (float/numpy.1darray): The annual std. dev. (volatility)
+        horizon (float): period in years (for simulation)
+        n_sims (int): number of Monte-Carlo simulations
+        seed (int, optonal): the RNG seed
+        corr (numpy.ndarray, optional): If none assume uncorrelated asset paths else usses corr as the correlation matrix
+    Return:
+        numpy.ndarray: the simulated prices series
+    """
+
+    if isinstance(mu,Iterable) and isinstance(mu,Iterable):
+        assert len(mu) == len(sigma), f"mu's shape {len(mu)} is not the same as sigma's shape {len(sigma)}"
+        n = mu.shape[0]
+    elif not isinstance(mu,Iterable) and not isinstance(mu,Iterable):
+        n = 1
+    else:
+        raise ValueError(f"mu's shape {len(mu)} is not the same as sigma's shape {len(sigma)}")
+    
+    if corr is None:
+        corr = np.zeros((n, n))
+        np.fill_diagonal(corr, 1.0)
+    
+    dt = horizon / n_sims
+    y = gbm(n_assets=n, dt=dt, corr=corr, n_sims=n_sims, seed=seed)
+
+    # TODO: Test this implementation
+    jumps = poisson_jump(n_assets=n, dt=dt, lm=lm, mj=mj, sj=sj, n_sims=n_sims, seed=seed)
+
+    s_t = np.exp(
+        (mu - sigma ** 2 / 2 - lm * (mj  + sj ** 2 / 2)) * dt
+        + sigma * y.T
+        + jumps
+    )
+
     s_t = np.vstack([np.ones(n), s_t])
     s_t = s0 * s_t.cumprod(axis=0)
     return s_t
